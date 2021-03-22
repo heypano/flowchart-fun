@@ -4,6 +4,8 @@ import { useLocation } from "react-router-dom";
 
 const idMatch = new RegExp(/^\s*\[(.*)\]/);
 const matchIndent = new RegExp(/^( )+/g);
+const matchColor = new RegExp(/^#[0-9a-fA-F]{6}$/);
+
 export function parseText(text: string) {
   let elements: CytoscapeOptions["elements"] = [];
   let lineNumber = 1;
@@ -13,13 +15,15 @@ export function parseText(text: string) {
   // preserve line numbers
   const lines = strip(text, { preserveNewlines: true }).split("\n");
 
-  // Loop over liens
+  // Loop over lines
   for (let line of lines) {
     if (line.trim() === "") {
       lineNumber++;
       continue;
     }
     let indentMatch = line.match(matchIndent);
+    let colorMatch = line.match(matchColor);
+    console.log(colorMatch)
     let linkMatch: RegExpMatchArray | null | string = getNodeLabel(line).match(
       /^\((.+)\)$/
     );
