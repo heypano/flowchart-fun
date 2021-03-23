@@ -2,9 +2,20 @@ import strip from "@tone-row/strip-comments";
 import { CytoscapeOptions } from "cytoscape";
 import { useLocation } from "react-router-dom";
 
-const idMatch = new RegExp(/^\s*\[(.*)\]/);
 const matchIndent = new RegExp(/^( )+/g);
-const matchColor = new RegExp(/^#[0-9a-fA-F]{6}$/);
+const idMatch = new RegExp(/^\s*\[(.*)\]/);
+// Whole line description in one regex with named capture groups
+// 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
+// 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
+// 3) Label (?<label>.+?) -- store the label using lazy mode .+? since we have potential matches at the end too
+// 4) Color (?<color>#[0-9a-fA-F]{6})?$ -- store the color hex if it exists at the end
+const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?(?<label>.+?)(?<color>#[0-9a-fA-F]{6})?$/;
+
+export function getLineData(text: string) {
+  const { groups } = text.match(lineRegex) || {};
+  const { color, label, indent, id } = groups || {};
+  return { color, label, indent, id };
+}
 
 export function parseText(text: string) {
   let elements: CytoscapeOptions["elements"] = [];
@@ -22,8 +33,9 @@ export function parseText(text: string) {
       continue;
     }
     let indentMatch = line.match(matchIndent);
-    let colorMatch = line.match(matchColor);
-    console.log(colorMatch)
+    const { groups } = line.match(lineRegex);
+    const { color, label, indent, id } = groups;
+    console.log(color, label, indent, id);
     let linkMatch: RegExpMatchArray | null | string = getNodeLabel(line).match(
       /^\((.+)\)$/
     );
@@ -80,10 +92,9 @@ export function parseText(text: string) {
       const label = getNodeLabel(line);
 
       // Check for custom id
-      const hasId = line.match(idMatch);
       elements.push({
         data: {
-          id: hasId ? hasId[1] : lineNumber.toString(),
+          id: id || lineNumber.toString(),
           label,
           lineNumber,
           ...getSize(label),
@@ -158,6 +169,7 @@ function getEdgeLabel(line: string) {
 }
 function getNodeLabel(line: string) {
   const hasId = line.match(idMatch);
+  const { id } = getLineData(line);
   const lineWithoutId = hasId ? line.slice(hasId[0].length) : line;
   let value = lineWithoutId.trim();
   if (lineWithoutId.indexOf(": ") > -1) {
