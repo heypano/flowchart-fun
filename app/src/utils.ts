@@ -17,7 +17,7 @@ export function parseText(text: string) {
       lineNumber++;
       continue;
     }
-    const { linkedId, nodeLabel, edgeLabel, indent, id } = getLineData(
+    const { linkedId, nodeLabel, edgeLabel, indent, id, color } = getLineData(
       line,
       lineNumber
     );
@@ -74,7 +74,11 @@ export function parseText(text: string) {
           id,
           label: nodeLabel,
           lineNumber,
+          color,
           ...getSize(nodeLabel),
+        },
+        css: {
+          "background-color": color,
         },
       });
     }
@@ -112,14 +116,19 @@ export function getLineData(text: string, lineNumber: number) {
   // 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
   // 3) Edge Label ((?<edgeLabel>.+): )? -- store the edge label if it exists
   // 4) Node Label (?<nodeLabel>.+?) -- store the node label
-  const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?((?<edgeLabel>.+): )?(?<nodeLabel>.+?)$/;
+  const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?((?<edgeLabel>.+): )?(?<nodeLabel>.+?)(?<color>#[0-9a-fA-F]{6})?$/;
   const { groups } = text.match(lineRegex) || {};
-  const { nodeLabel = "", edgeLabel = "", indent, id = lineNumber.toString() } =
-    groups || {};
+  const {
+    nodeLabel = "",
+    edgeLabel = "",
+    indent,
+    id = lineNumber.toString(),
+    color,
+  } = groups || {};
   const { groups: labelGroups } =
     nodeLabel.match(/^\((?<linkedId>.+)\)\s*$/) || {};
   const { linkedId } = labelGroups || {};
-  return { nodeLabel, edgeLabel, indent, id, linkedId };
+  return { nodeLabel, edgeLabel, indent, id, linkedId, color };
 }
 
 const base = 12.5;

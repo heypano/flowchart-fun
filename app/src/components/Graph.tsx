@@ -41,6 +41,8 @@ function Graph({
       let error = false;
       let newElements: cytoscape.ElementDefinition[] = [];
       try {
+        errorCy.current?.destroy();
+        errorCy.current = cytoscape();
         newElements = parseText(textToParse);
         errorCy.current?.json({ elements: newElements });
       } catch {
@@ -228,6 +230,15 @@ function Graph({
       setHoverLineNumber(undefined);
     }
     cyCurrent.on("mouseover", "node", nodeHighlight);
+    cyCurrent.on("data", "node", (event) => {
+      const { target } = event;
+      const color = target?.data("color");
+      if (color) {
+        target.css({
+          "background-color": color,
+        });
+      }
+    });
     cyCurrent.on("mouseover", "edge", edgeHighlight);
     cyCurrent.on("tapstart", "node", nodeHighlight);
     cyCurrent.on("tapstart", "edge", edgeHighlight);
