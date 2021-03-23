@@ -2,8 +2,6 @@ import strip from "@tone-row/strip-comments";
 import { CytoscapeOptions } from "cytoscape";
 import { useLocation } from "react-router-dom";
 
-const matchIndent = new RegExp(/^( )+/g);
-
 export function getLineData(text: string, lineNumber: number) {
   // Whole line description in one regex with named capture groups
   // 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
@@ -60,9 +58,11 @@ export function parseText(text: string) {
           continue;
         }
 
-        const currentLineIndent = currentLine.match(matchIndent);
-        checkLength = currentLineIndent?.[0].length ?? 0;
-        if (checkLength < indent.length) {
+        const { indent: currentLineIndent } = getLineData(
+          currentLine,
+          checkLine
+        );
+        if (currentLineIndent.length < indent.length) {
           parent = checkLine;
           break;
         }
