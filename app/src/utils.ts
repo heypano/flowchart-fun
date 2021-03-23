@@ -33,12 +33,10 @@ export function parseText(text: string) {
       continue;
     }
     let indentMatch = line.match(matchIndent);
-    const { groups } = line.match(lineRegex);
-    const { color, label, indent, id } = groups;
+    // TODO: add stripSlashes on nodelabel for some reason
+    const { color, label, indent, id } = getLineData(line);
     console.log(color, label, indent, id);
-    let linkMatch: RegExpMatchArray | null | string = getNodeLabel(line).match(
-      /^\((.+)\)$/
-    );
+    let linkMatch: RegExpMatchArray | null | string = label.match(/^\((.+)\)$/);
     if (linkMatch) {
       linkMatch = linkMatch[1];
     }
@@ -82,15 +80,13 @@ export function parseText(text: string) {
             id,
             source,
             target,
-            label: getEdgeLabel(line),
+            label,
             lineNumber,
           },
         });
       }
     }
     if (!linkMatch) {
-      const label = getNodeLabel(line);
-
       // Check for custom id
       elements.push({
         data: {
@@ -157,25 +153,6 @@ function getSize(label: string) {
     }
   }
   return undefined;
-}
-
-function getEdgeLabel(line: string) {
-  const hasId = line.match(idMatch);
-  const lineWithoutId = hasId ? line.slice(hasId[0].length) : line;
-  if (lineWithoutId.indexOf(": ") > -1) {
-    return lineWithoutId.split(": ")[0].trim();
-  }
-  return "";
-}
-function getNodeLabel(line: string) {
-  const hasId = line.match(idMatch);
-  const { id } = getLineData(line);
-  const lineWithoutId = hasId ? line.slice(hasId[0].length) : line;
-  let value = lineWithoutId.trim();
-  if (lineWithoutId.indexOf(": ") > -1) {
-    value = lineWithoutId.split(": ").slice(1).join(": ").trim();
-  }
-  return stripSlashes(value);
 }
 
 function getNodeId(line: string, lineNumber: number) {
