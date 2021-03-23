@@ -3,18 +3,27 @@ import { CytoscapeOptions } from "cytoscape";
 import { useLocation } from "react-router-dom";
 
 const matchIndent = new RegExp(/^( )+/g);
-const idMatch = new RegExp(/^\s*\[(.*)\]/);
-// Whole line description in one regex with named capture groups
-// 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
-// 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
-// 3) Label (?<label>.+?) -- store the label using lazy mode .+? since we have potential matches at the end too
-// 4) Color (?<color>#[0-9a-fA-F]{6})?$ -- store the color hex if it exists at the end
-const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?(?<label>.+?)(?<color>#[0-9a-fA-F]{6})?$/;
 
-export function getLineData(text: string) {
+export function getLineData(text: string, lineNumber: number) {
+  // Whole line description in one regex with named capture groups
+  // 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
+  // 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
+  // 3) Edge Label ((?<edgelabel>.+): )? -- store the edge label if it exists
+  // 4) Node Label (?<nodelabel>.+?) -- store the node label
+  // 4) Color (?<color>#[0-9a-fA-F]{6})?$ -- store the color hex if it exists at the end
+  const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?((?<edgelabel>.+): )?(?<nodelabel>.+?)(?<color>#[0-9a-fA-F]{6})?$/;
   const { groups } = text.match(lineRegex) || {};
-  const { color, label, indent, id } = groups || {};
-  return { color, label, indent, id };
+  const {
+    color,
+    nodelabel = "",
+    edgelabel = "",
+    indent,
+    id = lineNumber.toString(),
+  } = groups || {};
+  const { groups: labelGroups } =
+    nodelabel.match(/^\((?<linkedId>.+)\)\s*$/) || {};
+  const { linkedId } = labelGroups || {};
+  return { color, nodelabel, edgelabel, indent, id, linkedId };
 }
 
 export function parseText(text: string) {
@@ -32,17 +41,12 @@ export function parseText(text: string) {
       lineNumber++;
       continue;
     }
-    let indentMatch = line.match(matchIndent);
-    // TODO: add stripSlashes on nodelabel for some reason
-    const { color, label, indent, id } = getLineData(line);
-    console.log(color, label, indent, id);
-    let linkMatch: RegExpMatchArray | null | string = label.match(/^\((.+)\)$/);
-    if (linkMatch) {
-      linkMatch = linkMatch[1];
-    }
+    const { color, linkedId, nodelabel, edgelabel, indent, id } = getLineData(
+      line,
+      lineNumber
+    );
 
-    if (indentMatch) {
-      const indent = indentMatch[0];
+    if (indent) {
       let parent;
       let checkLine = lineNumber;
       let checkLength = indent.length;
@@ -65,8 +69,8 @@ export function parseText(text: string) {
       }
       // If we found a parent
       if (parent) {
-        const source = getNodeId(lines[checkLine - 1], checkLine);
-        const target = linkMatch ? linkMatch : getNodeId(line, lineNumber);
+        const { id: source } = getLineData(lines[checkLine - 1], checkLine);
+        const target = linkedId || getLineData(line, lineNumber).id;
 
         // Find a unique id
         let id = `${source}_${target}:0`;
@@ -80,20 +84,20 @@ export function parseText(text: string) {
             id,
             source,
             target,
-            label,
+            label: edgelabel,
             lineNumber,
           },
         });
       }
     }
-    if (!linkMatch) {
+    if (!linkedId) {
       // Check for custom id
       elements.push({
         data: {
           id: id || lineNumber.toString(),
-          label,
+          label: nodelabel,
           lineNumber,
-          ...getSize(label),
+          ...getSize(nodelabel),
         },
       });
     }
@@ -155,11 +159,6 @@ function getSize(label: string) {
   return undefined;
 }
 
-function getNodeId(line: string, lineNumber: number) {
-  const hasId = line.match(idMatch);
-  return hasId ? hasId[1] : lineNumber.toString();
-}
-
 // linear regression of text node width to graph node size
 function regressionX(x: number) {
   return Math.floor(0.63567 * x + 6);
@@ -171,10 +170,6 @@ function regressionY(x: number) {
 // put things roughly on the same scale
 function cleanup(x: number) {
   return Math.ceil(x / base) * base;
-}
-
-function stripSlashes(str: string) {
-  return str.replace(/\\(.)/gm, "$1");
 }
 
 function preventBreakOnHypen(str: string) {
