@@ -2,28 +2,6 @@ import strip from "@tone-row/strip-comments";
 import { CytoscapeOptions } from "cytoscape";
 import { useLocation } from "react-router-dom";
 
-export function getLineData(text: string, lineNumber: number) {
-  // Whole line description in one regex with named capture groups
-  // 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
-  // 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
-  // 3) Edge Label ((?<edgelabel>.+): )? -- store the edge label if it exists
-  // 4) Node Label (?<nodelabel>.+?) -- store the node label
-  // 4) Color (?<color>#[0-9a-fA-F]{6})?$ -- store the color hex if it exists at the end
-  const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?((?<edgelabel>.+): )?(?<nodelabel>.+?)(?<color>#[0-9a-fA-F]{6})?$/;
-  const { groups } = text.match(lineRegex) || {};
-  const {
-    color,
-    nodelabel = "",
-    edgelabel = "",
-    indent,
-    id = lineNumber.toString(),
-  } = groups || {};
-  const { groups: labelGroups } =
-    nodelabel.match(/^\((?<linkedId>.+)\)\s*$/) || {};
-  const { linkedId } = labelGroups || {};
-  return { color, nodelabel, edgelabel, indent, id, linkedId };
-}
-
 export function parseText(text: string) {
   let elements: CytoscapeOptions["elements"] = [];
   let lineNumber = 1;
@@ -39,7 +17,7 @@ export function parseText(text: string) {
       lineNumber++;
       continue;
     }
-    const { color, linkedId, nodelabel, edgelabel, indent, id } = getLineData(
+    const { linkedId, nodelabel, edgelabel, indent, id } = getLineData(
       line,
       lineNumber
     );
@@ -47,7 +25,6 @@ export function parseText(text: string) {
     if (indent) {
       let parent;
       let checkLine = lineNumber;
-      let checkLength = indent.length;
 
       while (checkLine >= 1) {
         checkLine -= 1;
@@ -127,6 +104,28 @@ export function parseText(text: string) {
   }
 
   return elements;
+}
+
+export function getLineData(text: string, lineNumber: number) {
+  // Whole line description in one regex with named capture groups
+  // 1) Indent ^(?<indent>\s*) -- store the indent which is 0 or more whitespace at the start
+  // 2) ID (\[(?<id>.*)\])? -- store the ID if it exists after the indent in square brackets
+  // 3) Edge Label ((?<edgelabel>.+): )? -- store the edge label if it exists
+  // 4) Node Label (?<nodelabel>.+?) -- store the node label
+  // 4) Color (?<color>#[0-9a-fA-F]{6})?$ -- store the color hex if it exists at the end
+  const lineRegex = /^(?<indent>\s*)(\[(?<id>.*)\])?((?<edgelabel>.+): )?(?<nodelabel>.+?)$/;
+  const { groups } = text.match(lineRegex) || {};
+  const {
+    color,
+    nodelabel = "",
+    edgelabel = "",
+    indent,
+    id = lineNumber.toString(),
+  } = groups || {};
+  const { groups: labelGroups } =
+    nodelabel.match(/^\((?<linkedId>.+)\)\s*$/) || {};
+  const { linkedId } = labelGroups || {};
+  return { nodelabel, edgelabel, indent, id, linkedId };
 }
 
 const base = 12.5;
